@@ -64,7 +64,9 @@ if (typeof document !== 'undefined') {
   const list = document.getElementById('caseList');
   const panel = document.getElementById('casePanel');
   let selectedId = cases[0].id;
-  let reviewedId = null;
+  let reviewedResult = null;
+  let livePending = false;
+  let liveStatus = { checked: false, configured: false, provider: 'SERV Reasoning', model: 'gpt-5.4-mini' };
 
   const node = (tag, className, text) => {
     const element = document.createElement(tag);
@@ -72,6 +74,17 @@ if (typeof document !== 'undefined') {
     if (text !== undefined) element.textContent = text;
     return element;
   };
+
+  async function checkLiveStatus() {
+    try {
+      const response = await fetch('/api/status', { cache: 'no-store' });
+      const status = await response.json();
+      liveStatus = { ...liveStatus, ...status, checked: true };
+    } catch {
+      liveStatus = { ...liveStatus, checked: true, configured: false };
+    }
+    render();
+  }
 
   function renderList() {
     list.replaceChildren();
@@ -85,10 +98,32 @@ if (typeof document !== 'undefined') {
       button.append(number, label, node('span', 'chevron', '↗'));
       button.addEventListener('click', () => {
         selectedId = ticket.id;
+        reviewedResult = null;
         render();
       });
       list.append(button);
     });
+  }
+
+  async function runLiveReview(caseId) {
+    livePending = true;
+    reviewedResult = null;
+    render();
+    try {
+      const response = await fetch('/api/review', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ caseId })
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'SERV review failed.');
+      reviewedResult = { caseId, result };
+    } catch (error) {
+      reviewedResult = { caseId, error: error.message || 'Could not complete the SERV review.' };
+    } finally {
+      livePending = false;
+      render();
+    }
   }
 
   function render() {
@@ -98,7 +133,7 @@ if (typeof document !== 'undefined') {
 
     const heading = node('div', 'case-heading');
     const category = node('p', 'eyebrow', ticket.category);
-    const mock = node('span', 'mock-chip', 'PRESET MOCK');
+    const mock = node('span', 'mock-chip', 'FICTIONAL CASE');
     heading.append(category, mock);
     panel.append(heading, node('h2', '', ticket.title));
 
@@ -117,32 +152,60 @@ if (typeof document !== 'undefined') {
 
     const review = node('section', 'review-box');
     review.setAttribute('aria-live', 'polite');
-    if (reviewedId === ticket.id) {
-      const result = evaluateReplyGateMock(ticket.id);
-      const outcomeLabel = result.outcome.toUpperCase();
+    const resultForCase = reviewedResult?.caseId === ticket.id ? reviewedResult : null;
+    if (resultForCase?.result) {
+      const result = resultForCase.result;
+      const isLive = result.source === 'serv-reasoning';
       review.classList.add(`outcome-${result.outcome}`);
-      review.append(node('div', 'review-topline', 'LOCAL PRESET ROUTING · NOT A REPPO RESPONSE'));
-      review.append(node('div', 'outcome-word', outcomeLabel));
+      review.append(node('div', 'review-topline', isLive
+        ? `LIVE SERV REASONING · ${result.model || liveStatus.model} · NOT A REPPO EVALUATION`
+        : 'PRESET LOCAL ROUTING · NOT A SERV OR REPPO RESPONSE'));
+      review.append(node('div', 'outcome-word', result.outcome.toUpperCase()));
       review.append(node('p', 'review-copy', result.critique));
       if (result.saferDraft) {
-        review.append(node('p', 'section-label suggested-label', 'SAFER SAMPLE WORDING'));
+        review.append(node('p', 'section-label suggested-label', isLive ? 'SERV-SUGGESTED WORDING' : 'SAFER SAMPLE WORDING'));
         review.append(node('p', 'suggested-draft', result.saferDraft));
       }
-      review.append(node('p', 'never-sent', 'No reply is sent. This result is a fixed local example.'));
+      review.append(node('p', 'never-sent', 'No reply is sent. A person must review any wording before use.'));
+    } else if (resultForCase?.error) {
+      review.classList.add('outcome-error');
+      review.append(node('div', 'review-topline', 'SERV REVIEW NOT COMPLETED'));
+      review.append(node('p', 'review-copy', resultForCase.error));
+      review.append(node('p', 'never-sent', 'No reply is sent. The local mock remains available.'));
     } else {
       review.append(node('div', 'review-topline', 'REVIEW GATE'));
-      review.append(node('p', 'review-placeholder', 'Run the local mock to reveal this case’s preset routing note.'));
+      review.append(node('p', 'review-placeholder', 'Choose a local preset or, when configured, send this fictional case to SERV Reasoning.'));
     }
 
-    const run = node('button', 'run-button', reviewedId === ticket.id ? 'Run mock again' : 'Run local mock review');
-    run.type = 'button';
-    run.addEventListener('click', () => {
-      reviewedId = ticket.id;
+    const actions = node('div', 'review-actions');
+    const mockRun = node('button', 'run-button', 'Run local mock review');
+    mockRun.type = 'button';
+    mockRun.disabled = livePending;
+    mockRun.addEventListener('click', () => {
+      reviewedResult = { caseId: ticket.id, result: evaluateReplyGateMock(ticket.id) };
       render();
     });
-    review.append(run);
+    actions.append(mockRun);
+
+    const liveButton = node('button', 'run-button live-button', livePending ? 'Waiting for SERV…' : 'Run live SERV review');
+    liveButton.type = 'button';
+    liveButton.disabled = livePending || !liveStatus.configured;
+    liveButton.title = liveStatus.configured
+      ? 'Sends this fictional sample case to SERV Reasoning. No customer reply is sent.'
+      : 'Set SERV_API_KEY in the local server environment to enable the live review.';
+    liveButton.addEventListener('click', () => runLiveReview(ticket.id));
+    actions.append(liveButton);
+    review.append(actions);
+
+    const statusText = liveStatus.configured
+      ? `SERV key is configured server-side. A live review sends this fictional case to ${liveStatus.provider}; usage may consume account credits.`
+      : liveStatus.checked
+        ? 'Live review is off: set SERV_API_KEY in the server environment. The key is never placed in browser code.'
+        : 'Checking local SERV setup…';
+    review.append(node('p', 'serv-status', statusText));
     panel.append(review);
   }
 
   render();
+  checkLiveStatus();
 }

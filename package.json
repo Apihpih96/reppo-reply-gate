@@ -1,9 +1,10 @@
 {
   "name": "reppo-reply-gate-local-demo",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
-  "description": "A static, local-only fictional support-ticket demo with preset mock outcomes.",
+  "description": "A fictional support-reply demo with local presets and an optional server-side SERV Reasoning integration.",
   "scripts": {
+    "start": "node server.js",
     "test": "node --test"
   },
   "engines": {

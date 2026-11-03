@@ -1,0 +1,12 @@
+{
+  "name": "reppo-reply-gate-local-demo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A static, local-only fictional support-ticket demo with preset mock outcomes.",
+  "scripts": {
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

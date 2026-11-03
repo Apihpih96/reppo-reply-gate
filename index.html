@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f4f2ec">
+  <title>Reply Gate — local mock demo</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <div class="shell">
+    <header class="topbar">
+      <a class="brand" href="#top" aria-label="Reply Gate home"><span class="brand-mark">RG</span><span>reply gate</span></a>
+      <span class="local-label"><span class="status-dot"></span>LOCAL MOCK · FICTIONAL DATA</span>
+    </header>
+
+    <main id="top">
+      <section class="intro">
+        <p class="eyebrow">SUPPORT DRAFT REVIEW · PROTOTYPE</p>
+        <h1>Good replies stay<br><em>inside the evidence.</em></h1>
+        <p class="intro-copy">Choose a fictional support case, inspect its evidence, and see a preset local review outcome before a human decision.</p>
+      </section>
+
+      <section class="demo-layout" aria-label="Reply Gate demo">
+        <aside class="case-rail">
+          <div class="rail-heading"><span class="eyebrow">SAMPLE CASES</span><span class="case-count">03</span></div>
+          <nav id="caseList" aria-label="Choose a fictional support case"></nav>
+          <p class="rail-note">Every case and outcome is synthetic. Nothing is sent.</p>
+        </aside>
+
+        <article class="case-card" id="casePanel" aria-live="polite"></article>
+      </section>
+
+      <footer class="footer-note">
+        <span class="footer-icon">i</span>
+        <p><strong>Honest prototype boundary</strong><br>This page uses hand-written sample drafts and fixed mock outcomes. It does not call SERV Reasoning or Reppo, and it never sends a customer reply.</p>
+      </footer>
+    </main>
+  </div>
+</body>
+</html>
